@@ -1,18 +1,22 @@
 from client import Client
 from tables import ROLE_JOIN_MSGS
+import re
 import os
 
 TOKEN = os.getenv("DISCORD_TOKEN2")
 COMMAND_PREFIX = ["/"]
 
 ADMIN_ROLE_ID = 738803963041939567
+PROJECTS_CATEGORY_ID = 738890618956415026
 
 client = Client(command_prefix=COMMAND_PREFIX)
 
-def is_admin(member):
+async def check_admin(member):
 	for role in member.roles:
 		if role.id == ADMIN_ROLE_ID:
 			return True
+	
+	await ctx.channel.send("You do not have permission for this command")
 	return False
 
 @client.command(name='say', pass_context=True)
@@ -22,6 +26,9 @@ async def say(ctx):
 
 @client.command(name='rolejoin')
 async def rolejoin(ctx):
+	if not check_admin(ctx.message.author):
+		return
+
 	await ctx.channel.send("React to any of the following messages to join the corresponding role")
 
 	for role in ctx.message.role_mentions:
@@ -31,11 +38,32 @@ async def rolejoin(ctx):
 
 @client.command(name='deletemsg')
 async def deletemsg(ctx, count):
-	if not is_admin(ctx.message.author):
-		await ctx.channel.send("You do not have permission for this command")
+	if not check_admin(ctx.message.author):
 		return
 
 	async for msg in ctx.channel.history(limit=int(count) + 1):
 		await msg.delete()
+
+@client.command(name='suggest')
+async def suggest(ctx):
+	suggestion = ctx.message.content.split(maxsplit=1)[1]
+	title = re.sub(r"[^\w\-]", "", re.sub(r" +", "-", suggestion)) # alphanumeric + "_" and "-"
+
+	if len(title) > 20:
+		await ctx.channel.send("Project title must be no more than 20 characters")
+		return
+
+	category = client.get_channel(PROJECTS_CATEGORY_ID)
+	project_channel = await category.create_text_channel(title)
+
+	await project_channel.send(
+f"This channel is for discussion of the {project_channel.name} project. Here you can hash out requirements, scope, etc., \
+before diving into the project itself and writing any code. \n\
+Refer to the channels under `Help` and `Templates` for info on setting up your team \
+using any of our provided templates. Of course, they are entirely optional, and exist solely \
+to help you team get started.")
+	
+	msg = await ctx.channel.send(f"React to this message to vote for \"{title}\". Checkout {project_channel.mention} for discussion")
+	await msg.add_reaction(u"\U0001F44D")
 
 client.run(TOKEN)
