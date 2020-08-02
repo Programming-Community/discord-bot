@@ -22,7 +22,6 @@ async def say(ctx):
 
 @client.command(name='rolejoin')
 async def rolejoin(ctx):
-	print('doing rolejoin thing')
 	await ctx.channel.send("React to any of the following messages to join the corresponding role")
 
 	for role in ctx.message.role_mentions:
