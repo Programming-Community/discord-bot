@@ -1,23 +1,13 @@
 from client import Client
 from tables import ROLE_JOIN_MSGS
+from permissions import *
 import re
 import os
 
 TOKEN = os.getenv("DISCORD_TOKEN2")
 COMMAND_PREFIX = ["/"]
 
-ADMIN_ROLE_ID = 738803963041939567
-PROJECTS_CATEGORY_ID = 738890618956415026
-
 client = Client(command_prefix=COMMAND_PREFIX)
-
-async def check_admin(member):
-	for role in member.roles:
-		if role.id == ADMIN_ROLE_ID:
-			return True
-	
-	await ctx.channel.send("You do not have permission for this command")
-	return False
 
 @client.command(name='say', pass_context=True)
 async def say(ctx):
@@ -26,7 +16,7 @@ async def say(ctx):
 
 @client.command(name='rolejoin')
 async def rolejoin(ctx):
-	if not check_admin(ctx.message.author):
+	if not await check_perms(ctx.message, roles=[ROLE_ADMIN], channels=[CHANNEL_ASSIGN_ROLES]):
 		return
 
 	await ctx.channel.send("React to any of the following messages to join the corresponding role")
@@ -38,7 +28,7 @@ async def rolejoin(ctx):
 
 @client.command(name='deletemsg')
 async def deletemsg(ctx, count):
-	if not check_admin(ctx.message.author):
+	if not await check_perms(ctx.message, roles=[ROLE_ADMIN]):
 		return
 
 	async for msg in ctx.channel.history(limit=int(count) + 1):
@@ -46,6 +36,9 @@ async def deletemsg(ctx, count):
 
 @client.command(name='suggest')
 async def suggest(ctx):
+	if not await check_perms(ctx.message, channels=[CHANNEL_SUGGESTIONS]):
+		return
+
 	suggestion = ctx.message.content.split(maxsplit=1)[1]
 	title = re.sub(r"[^\w\-]", "", re.sub(r" +", "-", suggestion)) # alphanumeric + "_" and "-"
 
@@ -53,7 +46,7 @@ async def suggest(ctx):
 		await ctx.channel.send("Project title must be no more than 20 characters")
 		return
 
-	category = client.get_channel(PROJECTS_CATEGORY_ID)
+	category = client.get_channel(CATEGORY_PROJECTS)
 	project_channel = await category.create_text_channel(title)
 
 	await project_channel.send(
